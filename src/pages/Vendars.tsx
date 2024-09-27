@@ -1,14 +1,14 @@
 import React, { useContext, useEffect, useState } from 'react';
 import DataTable from 'react-data-table-component';
 import { useNavigate } from 'react-router-dom';
-import { addCategory, deleteCategory, fetchSingleCategoryById, updateCategory, viewAllCategory } from '../AllApiCall';
+import { acceptVendar, addCategory, deleteCategory, fetchAllVendars, fetchSingleCategoryById, updateCategory, viewAllCategory } from '../AllApiCall';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { TableColumn } from 'react-data-table-component';
 import { ALLOW_ORIGIN } from '../HttpClient';
 import { ALLDATA } from '../Contexts/AllData';
 import { MdDelete } from "react-icons/md";
-import { FaEdit } from "react-icons/fa";
+import { FaEdit, FaEye } from "react-icons/fa";
 
 
 
@@ -35,6 +35,7 @@ const initialState: CategoryState = {
 // Define the interface for the row data
 interface CategoryRow {
     sl: number;
+    vendarID: number
     catID: number;
     catname: string;
     type: string;
@@ -45,7 +46,7 @@ interface CategoryRow {
 }
 
 
-function Category() {
+function Vendars() {
     const data = useContext(ALLDATA)
     // const {pageCount ,setPageCount}=data
     console.log(data?.pageCount, "kkkkkkkk")
@@ -68,21 +69,21 @@ function Category() {
             sortable: true,
         },
         {
-            name: 'Category Name',
+            name: 'Vendor Name',
             selector: row => row.catname,
             sortable: true,
         },
         {
-            name: 'Category ID',
-            selector: row => row.catID,
+            name: 'Mobile Number',
+            selector: row => row.type,
             sortable: true,
         },
-        {
-            name: 'Image',
+        // {
+        //     name: 'Image',
 
-            cell: row => <img alt="Image" src={`${ALLOW_ORIGIN}/${row.image_url}`} />,
-            sortable: true,
-        },
+        //     cell: row => <img alt="Image" src={`${ALLOW_ORIGIN}/${row.image_url}`} />,
+        //     sortable: true,
+        // },
         // {
         //     name: 'Position',
         //     selector: row => row.position,
@@ -94,7 +95,7 @@ function Category() {
                 <input
                     type="checkbox"
                     checked={row?.status}
-                    //   onChange={handleChange}
+                    onChange={() => vendarStatusChange(row.vendarID, row?.status)}
                     className="sr-only peer"
                 />
                 <div className="relative border-2 border-yellow-500 w-11 h-6 bg-yellow-200 rounded-full peer dark:bg-gray-700 peer-focus:ring-4 dark:peer-focus:ring-green-800 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600 peer:bg-yellow-500"></div>                <span className="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">
@@ -103,17 +104,17 @@ function Category() {
             </label></>,
             sortable: true,
         },
-        {
-            name: 'SubCategory',
-            cell: row => row.subCat, // Assuming this is a string or handle it accordingly
-            sortable: false,
-        },
+        // {
+        //     name: 'SubCategory',
+        //     cell: row => row.subCat, // Assuming this is a string or handle it accordingly
+        //     sortable: false,
+        // },
         {
             name: 'Action',
             cell: row => (
                 <div className="w-[300px] flex items-center space-x-4">
-                    <FaEdit
-                        onClick={() => handleEdit(row.catID)}
+                    <FaEye
+                        onClick={() => navigate('/SingleVendarView')}
                         size={34}
                         className="text-blue-500 cursor-pointer"
                     />
@@ -253,31 +254,22 @@ function Category() {
     const handleUpdate = async () => {
         if (!handleValidation())
             return;
+        // name:demo category
+        // parent_id:5
+        // description:demo
+        // order:1
+        // isActive:1
 
+        const editObj = {
+            name: fromdata.categoryName,
+            description: fromdata.type,
+            order: fromdata.position,
+            isActive: fromdata.status === "true" ? 1 : 0,
+            Image: fromdata.image
+        };
 
-        // const editObj = {
-        //     name: fromdata.categoryName,
-        //     description: fromdata.type,
-        //     order: fromdata.position,
-        //     isActive: fromdata.status === "true" ? 1 : 0,
-        //     file: fromdata.image
-        // };
-
-
-        const formData = new FormData();
-
-        // Append key-value pairs to FormData
-        formData.append('name', fromdata.categoryName);
-        formData.append('description', fromdata.type);
-        formData.append('order', fromdata.position);
-        formData.append('isActive', (fromdata.status === "true" ? 1 : 0).toString());
-
-        // Append the file (if fromdata.image is a valid File object)
-        formData.append('file', fromdata.image);
-        console.log(formData, "89999999999")
-        const res = await updateCategory(editableId as number, formData);
+        const res = await updateCategory(editableId as number, editObj);
         if (res && res.success) {
-            setFromdata(initialState);
             toast.success(res.message);
             fetchAllCategory(1);
             setIsModal(false);
@@ -304,28 +296,53 @@ function Category() {
         });
     }
 
+
+    const vendarStatusChange = async (id: number, status: boolean) => {
+        Swal.fire({
+            title: "Are you sure?",
+            text: "After accepting vendar will be a part of this system",
+            // icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Accept!"
+        }).then(async (result) => {
+            if (result.isConfirmed) {
+                const sendData = { "vendor_id": id, "status": status ? 0 : 1 }
+                let res = await acceptVendar(sendData);
+                if (res && res.success) {
+                    const updatedCategoryData = categoryData.map((ele) => {
+                        if (ele.vendarID === id) {
+                            return { ...ele, status: !status };
+                        }
+                        return ele;
+                    });
+                    setCategoryData(updatedCategoryData)
+
+
+
+                    toast.success(res.message);
+                }
+            }
+        });
+    }
+
+
     // Fetching Categories
     const fetchAllCategory = async (page: number) => {
         data?.setPageCount(page)
         setIsLoading(true);
-        const res = await viewAllCategory(page);
+        const res = await fetchAllVendars(page);
+        // console.log(res, "llllllll")
         if (res && res.success) {
             const resArr = res.data.map((ele: any, index: number) => ({
                 sl: index + 1,
-                catID: ele.category_id,
-                catname: ele.name,
-                image_url: ele.image_url,
-                type: ele.description,
+                vendarID: ele.vendor_id,
+                catname: `${ele.first_name + ' ' + ele.last_name}`,
+                // image_url: ele.image_url,
+                type: ele.phone_no,
                 position: ele.position,
-                subCat: (
-                    <button
-                        className="bg-slate-500 hover:bg-slate-700 text-white font-bold py-2 px-4 max-w-54 rounded"
-                        onClick={() => navigate(`/subCategory/${ele.category_id}`)}
-                    >
-                        Open Service list
-                    </button>
-                ),
-                status: ele.isActive === 1 ? "true" : "false",
+                status: ele.status === 1 ? true : false,
             }));
             setCategoryData(resArr);
             setTotalRowCount(res.total);
@@ -468,4 +485,4 @@ function Category() {
     );
 }
 
-export default Category;
+export default Vendars;

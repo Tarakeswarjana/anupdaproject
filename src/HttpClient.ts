@@ -1,4 +1,4 @@
-const BASE_URL = "http://13.127.135.64:3000/v1";
+const BASE_URL = "http://13.127.135.64:3000/";
 const ALLOW_ORIGIN = "http://13.127.135.64:3000";
 
 // Type definitions
@@ -11,84 +11,112 @@ interface RequestData {
 function checkingAuth() {
     let tokendata = localStorage.getItem('token');
     if (tokendata) {
-        return `bearer ${JSON.parse(tokendata)}`;
+        return `Bearer ${JSON.parse(tokendata)}`;
     }
     return "";
 }
-
-function requestData(url: string, data: RequestData = {}, method: HttpMethod = "GET"): Promise<any> {
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        const fullUrl = BASE_URL + url
-        xhr.open(method, fullUrl, true);
-
-        // Set headers
-        xhr.setRequestHeader("Content-Type", "application/json");
-        if (checkingAuth()) {
-            xhr.setRequestHeader("Authorization", checkingAuth());
-        }
-
-        // Handle response
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                        let responseData: any;
-                        const contentType = xhr.getResponseHeader("Content-Type");
-
-                        if (contentType && contentType.includes("application/json")) {
-                            responseData = JSON.parse(xhr.responseText);
-                        } else if (contentType && contentType.includes("text/html")) {
-                            responseData = xhr.responseText; // Treat HTML as text
-                        } else if (contentType && contentType.includes("text/plain")) {
-                            responseData = xhr.responseText; // Treat plain text as text
-                        } else if (contentType && contentType.includes("application/x-www-form-urlencoded")) {
-                            const formData = new URLSearchParams(xhr.responseText);
-                            responseData = Object.fromEntries(formData.entries());
-                        } else {
-                            responseData = xhr.responseText; // Fallback to text for unknown content types
-                        }
-
-                        resolve(responseData);
-                    } catch (error:any) {
-                        reject(`Failed to parse response: ${error.message}`);
-                    }
-                } else {
-                    reject(`HTTP error! Status: ${xhr.status}, Message: ${xhr.statusText}`);
-                }
-            }
-        };
-
-        // Handle network errors
-        xhr.onerror = function () {
-            reject(`Request failed: ${xhr.statusText}`);
-        };
-
-        // Send request
-        if (method === "GET" || method === "DELETE") {
-            xhr.send();
-        } else {
-            xhr.send(JSON.stringify(data));
-        }
-    });
+interface Config extends RequestInit {
+    body?: any;
 }
+// async function requestData(url: string, data: RequestData = {}, method: HttpMethod = "GET",isfromdata:Boolean): Promise<any> {
+   
+
+//     const config:Config = {
+//         method: method,
+//         headers: {
+//             'Accept': 'application/json',
+//             'Content-Type': 'application/json',
+//             'Authorization': checkingAuth()
+//             ,
+//              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.5845.111 Safari/537.36'
+            
+//         },
+//         body: isfromdata?data:JSON.stringify(data)
+//     }
+
+
+//     if (method.toLowerCase() === "get") {
+//         config.body = undefined; 
+//     }
+
+
+//     const response = await fetch(url, config)
+//     const json = await response.json()
+//     if (response) {
+//         return json
+//         console.log(json,"kkkkkk")
+//         // return response
+//     } else {
+//         alert("error in fetching api")
+//         console.log("error")
+//     }
+// }
+
+async function requestData(
+    url: string,
+    data: RequestData = {},
+    method: HttpMethod = "GET",
+    isFormData: boolean = false
+  ): Promise<any> {
+    // Determine headers based on whether data is FormData or JSON
+    const headers: any = {
+      Accept: 'application/json',
+      'Authorization': checkingAuth(),
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.5845.111 Safari/537.36'
+    };
+  
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
+  
+    const config: Config = {
+      method: method,
+      headers: headers,
+      body: isFormData ? data : JSON.stringify(data)
+    };
+  
+    // For GET requests, remove the body
+    if (method.toLowerCase() === "get") {
+      delete config.body;
+    }
+  
+    try {
+      const response = await fetch(url, config);
+      const json = await response.json();
+      
+      if (response.ok) {
+        return json;
+      } else {
+        console.log("Error:", json);
+        alert("Error in fetching API");
+        return json; // Return error response for further handling if needed
+      }
+    } catch (error) {
+      console.log("Network or server error:", error);
+      alert("Network or server error");
+      throw error; // Optionally rethrow the error
+    }
+  }
+  
 
 function get(endpoint: string, params: RequestData = {}): Promise<any> {
     const urlParams = new URLSearchParams(params as any).toString();
-    const fullUrl = endpoint + (urlParams ? `?${urlParams}` : '');
-    return requestData(fullUrl, {}, "GET");
+    const fullUrl = BASE_URL+endpoint + (urlParams ? `?${urlParams}` : '');
+
+    return requestData(fullUrl, {}, "GET",false);
 }
 
-function post(endpoint: string, params: RequestData = {}): Promise<any> {
-    return requestData(endpoint, params, "POST");
+function post(endpoint: string, params: RequestData = {},isfromdata:boolean): Promise<any> {
+
+    return requestData(BASE_URL+endpoint, params, "POST",isfromdata);
 }
 
-function put(endpoint: string, params: RequestData = {}): Promise<any> {
-    return requestData(endpoint, params, "PUT");
+function put(endpoint: string, params: RequestData = {},isfromdata:boolean): Promise<any> {
+    return requestData(BASE_URL+endpoint, params, "PUT",isfromdata);
 }
 
 function deletemethod(endpoint: string, params: RequestData = {}): Promise<any> {
-    return requestData(endpoint, params, "DELETE");
+    return requestData(BASE_URL+endpoint, params, "DELETE",false);
 }
 
 const request = {

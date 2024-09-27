@@ -35,15 +35,19 @@
 
   border-radius: 30px;
   position: fixed;
-  width: 800px;
-  height: 500px;
+  width: 60vh;
+  height: 80vh;
   z-index: 99;
   inset: 0px;
   background-color: rgb(202, 198, 198);
   margin: auto;
-  padding: 30px;
+  padding: 2rem;
 }
-
+@media (max-width: 900px) {
+  .modelFrom {
+    padding-right: 1.5rem;
+  }
+}
 
 
 

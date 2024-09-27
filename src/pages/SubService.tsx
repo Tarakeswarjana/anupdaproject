@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import DataTable from 'react-data-table-component';
-import { useNavigate } from 'react-router-dom';
-import { addCategory, deleteCategory, fetchSingleCategoryById, updateCategory, viewAllCategory } from '../AllApiCall';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { addCategory, addService, addSubService, deleteCategory, deletesubService, fetchSingleCategoryById, fetchSingleServiceById, updateCategory, updatesubService, viewAllCategory, viewAllSetrvice, viewAllSubCategory, viewAllsubService } from '../AllApiCall';
 import { toast } from 'react-toastify';
 import Swal from 'sweetalert2';
 import { TableColumn } from 'react-data-table-component';
 import { ALLOW_ORIGIN, BASE_URL } from '../HttpClient';
+import { FaEdit } from 'react-icons/fa';
+import { MdDelete } from 'react-icons/md';
 // Define the interface for the state
 interface CategoryState {
     categoryName: string;
+    serviceName: string
     type: string;
-    position: string;
+    position: any;
     status: boolean;
 }
 
@@ -20,15 +23,21 @@ const initialState: CategoryState = {
     type: "",
     position: "",
     status: true,
+    serviceName: ""
 };
 
 // Define the interface for the row data
 interface CategoryRow {
     sl: number;
-    catname: string;
+    subCatId: number;
+    subServiceId: number
+    servie: string;
     type: string;
     position: string;
+    SubService: string
+    price: number
     status: string;
+    approx_time: number
     subCat: JSX.Element;
     image_url: string
 }
@@ -36,6 +45,11 @@ interface CategoryRow {
 
 
 function SubService() {
+    const { id } = useParams()
+    // console.log(id, "jjjjjjjj")
+    const location = useLocation();
+    const { serviceName } = location.state
+
     const [fromdata, setFromdata] = useState<CategoryState>(initialState);
     const [isEdit, setIsEdit] = useState<boolean>(false);
     const [editableId, setEditableId] = useState<number | null>(null);
@@ -43,6 +57,8 @@ function SubService() {
     const [isModal, setIsModal] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [totalRowCount, setTotalRowCount] = useState<number>(0);
+    const [singleCatData, setsingleCatData] = useState<any>(null);
+    console.log(singleCatData, "kkkoopp")
     const navigate = useNavigate();
 
     // Define the columns with type annotations
@@ -53,55 +69,51 @@ function SubService() {
             sortable: true,
         },
         {
-            name: 'Category Name',
-            selector: row => row.catname,
-            sortable: true,
-        },
-        {
-            name: 'Image',
-            cell: row => <img alt="Image"
-                src={`${ALLOW_ORIGIN}/${row.image_url}`} />,
+            name: 'Service Name',
+            selector: row => row.servie,
             sortable: true,
         },
         // {
-        //     name: 'Position',
-        //     selector: row => row.position,
+        //     name: 'Image',
+        //     cell: row => <img alt="Image"
+        //         src={`${ALLOW_ORIGIN}/${row.image_url}`} />,
         //     sortable: true,
         // },
         {
-            name: 'Status',
-            cell: row => <> <label className="inline-flex items-center me-5 cursor-pointer">
-                <input type="checkbox" value="" className="sr-only peer" />
-                <div className="relative border-2 border-green-500 w-11 h-6 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-focus:ring-4  dark:peer-focus:ring-green-800 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600"></div>
-                <span className="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Green</span>
-            </label></>,
+            name: 'SubService Name',
+            selector: row => row.SubService,
             sortable: true,
         },
         {
-            name: 'SubCategory',
-            cell: row => row.subCat, // Assuming this is a string or handle it accordingly
-            sortable: false,
+            name: 'Price',
+            selector: row => row.price,
+            sortable: true,
         },
+        {
+            name: 'Approx timing',
+            selector: row => row.approx_time,
+            sortable: true,
+        },
+
         {
             name: 'Action',
             cell: row => (
-                <div className='w-[300px]'>
-                    <button
-                        onClick={() => handleEdit(row.sl)}
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-                    >
-                        Edit
-                    </button>
-                    <button
-                        onClick={() => handleDelete(row.sl)}
-                        className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
-                    >
-                        Delete
-                    </button>
+                <div className="w-[300px] flex items-center space-x-4">
+                    <FaEdit
+                        onClick={() => handleEdit(row)}
+                        size={34}
+                        className="text-blue-500 cursor-pointer"
+                    />
+                    <MdDelete
+                        onClick={() => handleDelete(row.subServiceId)}
+                        size={34}
+                        className="text-red-500 cursor-pointer"
+                    />
                 </div>
             ),
         },
     ];
+
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -110,75 +122,96 @@ function SubService() {
 
     // Validation Function
     const handleValidation = (): boolean => {
-        if (!fromdata.categoryName) {
-            toast.error("Enter Category Name");
+        if (!fromdata.serviceName) {
+            toast.error("Enter serviceName Name");
             return false;
         }
-        if (!fromdata.type) {
-            toast.error("Enter type");
-            return false;
-        }
-        if (!fromdata.status) {
-            toast.error("Enter status");
-            return false;
-        }
+        // if (!fromdata.type) {
+        //     toast.error("Enter type");
+        //     return false;
+        // }
+        // if (!fromdata.status) {
+        //     toast.error("Enter status");
+        //     return false;
+        // }
         return true;
     }
 
     const handleSubmit = async () => {
         if (!handleValidation())
             return;
+        // "service_id": 5, "subservice_name":"Test", "price": "6", "unit_id":3 
 
-        const obj1 = {
-            name: fromdata.categoryName,
-            description: fromdata.type,
-            order: fromdata.position,
-            isActive: fromdata.status ? 1 : 0,
-        };
 
-        let res = await addCategory(obj1);
+        let obj1 = {
+            service_id: id,
+            subservice_name: fromdata.serviceName,
+            price: fromdata.type,
+            unit_id: fromdata.position
+        }
+        // const formData = new FormData();
+
+
+
+
+
+        let res = await addSubService(obj1);
+        console.log(res, "preview")
         if (res && res.success) {
-            toast.success("Category Added successfully");
+            toast.success("Service Added successfully");
             setFromdata(initialState);
             setIsModal(false);
-            fetchAllCategory(1);
+            fetchAllsubCategory();
         }
     }
 
-    const handleEdit = async (id: number) => {
-        setEditableId(id);
-        let res = await fetchSingleCategoryById(id);
-        if (res && res.success) {
-            const obj1 = {
-                categoryName: res.data?.name,
-                type: res.data?.description,
-                position: res.data?.order,
-                status: res.data?.isActive === 1,
-            };
-            setFromdata(obj1);
-            setIsModal(true);
-            setIsEdit(true);
-        }
+    const handleEdit = async (obj: any) => {
+        console.log(obj, "ooiii")
+
+        setEditableId(obj.subServiceId);
+
+        // { "subservice_name": "Floor Cleaning", "price":9,"unit_id":1,"service_id":20 }
+        // service_id: id,
+        // subservice_name: fromdata.serviceName,
+        // price: fromdata.type,
+        // unit_id: fromdata.position
+        const obj1 = {
+            categoryName: "",
+            type: obj.price,
+            position: 3,
+            status: true,
+            serviceName: obj.SubService
+            // categoryName: string;
+            // serviceName: string
+            // type: string;
+            // position: string;
+            // status: boolean;
+        };
+        setFromdata(obj1);
+        setIsModal(true);
+        setIsEdit(true);
+
     }
 
     const handleUpdate = async () => {
         if (!handleValidation())
             return;
 
-        const editObj = {
-            name: fromdata.categoryName,
-            description: fromdata.type,
-            order: fromdata.position,
-            isActive: fromdata.status ? 1 : 0,
-        };
+        let editObj = {
+            service_id: id,
+            subservice_name: fromdata.serviceName,
+            price: fromdata.type,
+            unit_id: fromdata.position
+        }
 
-        const res = await updateCategory(editableId as number, editObj);
+        const res = await updatesubService(editableId as number, editObj);
         if (res && res.success) {
             toast.success(res.message);
-            fetchAllCategory(1);
+            fetchAllsubCategory();
             setIsModal(false);
         }
     }
+
 
     const handleDelete = async (id: number) => {
         Swal.fire({
@@ -191,9 +224,9 @@ function SubService() {
             confirmButtonText: "Yes, delete it!"
         }).then(async (result) => {
             if (result.isConfirmed) {
-                let res = await deleteCategory(id);
+                let res = await deletesubService(id);
                 if (res && res.success) {
-                    fetchAllCategory(1);
+                    fetchAllsubCategory();
                     toast.success(res.message);
                 }
             }
@@ -201,46 +234,68 @@ function SubService() {
     }
 
     // Fetching Categories
-    const fetchAllCategory = async (page: number) => {
+    const fetchAllsubCategory = async () => {
         setIsLoading(true);
-        const res = await viewAllCategory(page);
+        const res = await viewAllsubService(id);
+        console.log(res, "iiiiiii")
+
         if (res && res.success) {
-            const resArr = res.data.map((ele: any) => ({
-                sl: ele.category_id,
-                catname: ele.name,
-                image_url: ele.image_url,
-                type: ele.description,
-                position: ele.position,
-                subCat: (
-                    <button
-                        className="bg-slate-500 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded"
-                        onClick={() => navigate("/subCategory")}
-                    >
-                        Open SubCategory
-                    </button>
-                ),
-                status: ele.isActive === 1 ? "true" : "false",
+            const resArr = res.data.map((ele: any, id: number) => ({
+                sl: id + 1,
+                subServiceId: ele.subservice_id,
+                servie: ele.service_name,
+                SubService: ele.subservice_name,
+                approx_time: ele.approx_time,
+                price: ele.price,
+
+                // subCat: (
+                //     <button
+                //         className="bg-slate-500 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded"
+                //         onClick={() => navigate(`/subService/${ele.service_id}`)}
+                //     >
+                //         Open SubService
+                //     </button>
+                // ),
+                // status: ele.isActive === 1 ? true : false,
             }));
             setCategoryData(resArr);
             setTotalRowCount(res.total);
             setIsLoading(false);
         }
     }
+    const fetchSingleCategory = async () => {
+        setIsLoading(true);
+        const res = await fetchSingleCategoryById(id);
+        if (res) {
+            setsingleCatData(res.data)
+        }
+    }
 
     useEffect(() => {
-        fetchAllCategory(1);
+        fetchSingleCategory()
+        fetchAllsubCategory();
     }, []);
-
     return (
         <section>
             <div className='border-b-4 border-solid border-indigo-500'>
                 <div>
                     <button
                         type="button"
+                        onClick={() => { navigate('/category') }}
+                        className="text-white bg-red-700 hover:bg-red-800 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-600 dark:hover:bg-red-700 dark:focus:ring-red-800 relative float-left"
+                    >
+                        back
+                    </button>
+                    <div > Category:{singleCatData?.name}</div>
+                </div>
+
+                <div>
+                    <button
+                        type="button"
                         onClick={() => setIsModal(true)}
                         className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800 relative float-right"
                     >
-                        Add new Category
+                        Add new Service
                     </button>
                 </div>
 
@@ -251,7 +306,7 @@ function SubService() {
                     progressPending={isLoading}
                     paginationServer
                     paginationTotalRows={totalRowCount}
-                    onChangePage={fetchAllCategory}
+                    onChangePage={fetchAllsubCategory}
                 // noRowsPerPage={true}
                 />
             </div>
@@ -267,19 +322,32 @@ function SubService() {
                     </span>
                     <form className="max-w-[54rem] mx-auto mt-[4rem]">
                         <div className="mb-5">
-                            <label htmlFor="categoryName" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Category Name</label>
+                            <label htmlFor="categoryName" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Service Name</label>
                             <input
                                 type="text"
                                 id="categoryName"
-                                onChange={handleChange}
+                                disabled
+                                // onChange={handleChange}
                                 name='categoryName'
-                                value={fromdata.categoryName}
+                                value={serviceName}
                                 className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 dark:shadow-sm-light"
                                 required
                             />
                         </div>
                         <div className="mb-5">
-                            <label htmlFor="type" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Type</label>
+                            <label htmlFor="categoryName" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Service Name</label>
+                            <input
+                                type="text"
+                                id="serviceName"
+                                onChange={handleChange}
+                                name='serviceName'
+                                value={fromdata.serviceName}
+                                className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 dark:shadow-sm-light"
+                                required
+                            />
+                        </div>
+                        <div className="mb-5">
+                            <label htmlFor="type" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Price</label>
                             <input
                                 type="text"
                                 id="type"
@@ -291,7 +359,7 @@ function SubService() {
                             />
                         </div>
                         <div className="mb-5">
-                            <label htmlFor="position" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Position</label>
+                            <label htmlFor="position" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">UnitID</label>
                             <input
                                 type="number"
                                 id="position"
@@ -302,7 +370,7 @@ function SubService() {
                                 required
                             />
                         </div>
-                        <div className="mb-5 flex gap-3">
+                        {/* <div className="mb-5 flex gap-3">
                             <label htmlFor="status" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Status
                                 <input
                                     type="radio"
@@ -321,7 +389,7 @@ function SubService() {
                                     checked={fromdata.status === false}
                                 /> OFF
                             </label>
-                        </div>
+                        </div> */}
                         <button
                             type="submit"
                             onClick={(e) => {
